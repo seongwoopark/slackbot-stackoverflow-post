@@ -1,13 +1,10 @@
 import os
 
 import slack
-from flask import Flask
-from flask_socketio import SocketIO
+from sanic import Sanic
 
 
-app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
-socketio = SocketIO(app)
+app = Sanic()
 
 
 @slack.RTMClient.run_on(event='message')
@@ -28,16 +25,16 @@ def say_hello(**payload):
 
 
 @app.route('/')
-def index():
-    return "<h1>Welcome to our server !!</h1>"
+async def index():
+    return "<h1>Welcome to server !!</h1>"
 
 
-@socketio.on('/bot')
-def work(message):
+@app.websocket('/bot')
+def bot(request, ws):
     slack_token = os.environ["SLACK_API_TOKEN"]
     rtm_client = slack.RTMClient(token=slack_token)
     rtm_client.start()
 
 
-if __name__ == '__main__':
-    socketio.run(app=app)
+if __name__ == "__main__":
+    app.run()
