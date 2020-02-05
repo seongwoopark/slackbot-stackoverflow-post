@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 import slack
@@ -16,7 +17,6 @@ def say_hello(**payload):
         channel_id = data['channel']
         thread_ts = data['ts']
         user = data['user']
-
         web_client.chat_postMessage(
             channel=channel_id,
             text=f"Hi <@{user}>!",
@@ -30,10 +30,12 @@ async def index():
 
 
 @app.websocket('/bot')
-def bot(request, ws):
+async def bot(request, ws):
     slack_token = os.environ["SLACK_API_TOKEN"]
     rtm_client = slack.RTMClient(token=slack_token)
     rtm_client.start()
+    while True:
+        await asyncio.sleep(1)
 
 
 if __name__ == "__main__":
