@@ -1,11 +1,10 @@
-import asyncio
 import os
 
 import slack
-from sanic import Sanic
+from flask import Flask
 
 
-app = Sanic()
+app = Flask(__name__)
 
 
 @slack.RTMClient.run_on(event='message')
@@ -17,6 +16,7 @@ def say_hello(**payload):
         channel_id = data['channel']
         thread_ts = data['ts']
         user = data['user']
+
         web_client.chat_postMessage(
             channel=channel_id,
             text=f"Hi <@{user}>!",
@@ -25,18 +25,16 @@ def say_hello(**payload):
 
 
 @app.route('/')
-async def index():
-    return "<h1>Welcome to server !!</h1>"
+def index():
+    return "<h1>Welcome to our server !!</h1>"
 
 
-@app.websocket('/bot')
-async def bot(request, ws):
+@app.route('/bot')
+def bot():
     slack_token = os.environ["SLACK_API_TOKEN"]
     rtm_client = slack.RTMClient(token=slack_token)
     rtm_client.start()
-    while True:
-        await asyncio.sleep(1)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run()
