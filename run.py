@@ -1,10 +1,7 @@
 import os
+import time
 
 import slack
-from flask import Flask
-
-
-app = Flask(__name__)
 
 
 @slack.RTMClient.run_on(event='message')
@@ -24,13 +21,9 @@ def say_hello(**payload):
         )
 
 
-@app.route('/')
-def index():
-    return "<h1>Welcome to our server !!</h1>"
-
-
 if __name__ == '__main__':
     slack_token = os.environ["SLACK_API_TOKEN"]
     rtm_client = slack.RTMClient(token=slack_token)
     rtm_client.start()
-    app.run()
+    while True:
+        time.sleep(0.25)
