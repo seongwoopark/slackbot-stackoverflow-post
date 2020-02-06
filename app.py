@@ -29,12 +29,8 @@ def index():
     return "<h1>Welcome to our server !!</h1>"
 
 
-@app.route('/bot')
-def bot():
+if __name__ == '__main__':
     slack_token = os.environ["SLACK_API_TOKEN"]
     rtm_client = slack.RTMClient(token=slack_token)
     rtm_client.start()
-
-
-if __name__ == '__main__':
     app.run()
