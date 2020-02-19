@@ -17,6 +17,7 @@ STACKOVERFLOW_TEAM_URL = os.environ["STACKOVERFLOW_TEAM_URL"]
 
 QUESTION_PATTERN = re.compile(r"^[^\S\r\n]*Q\.[^\S\r\n]*")
 ANSWER_PATTERN = re.compile(r"^[^\S\r\n]*A\.[^\S\r\n]*")
+KOREAN_PATTERN = re.compile(r"[\u3131-\u3163\uac00-\ud7a3]+")
 
 
 class StackOverFlowDispatcher:
@@ -40,9 +41,21 @@ class StackOverFlowDispatcher:
         pass
 
     async def search(self, query: str, limit: int = 3):
-        url = URL('https://api.stackexchange.com/2.2/search/advanced')
-        url = url.update_query(q=query)
-        response = await self._get(url)
+        query = KOREAN_PATTERN.sub('', query)
+        words = []
+        for word in query.split():
+            word = word.strip()
+            if word:
+                words.append(word)
+        if len(words) == 1:
+            url = URL('https://api.stackexchange.com/2.2/search/advanced')
+            url = url.update_query(q=query)
+            response = await self._get(url)
+        else:
+            query = ' '.join(words)
+            url = URL('https://api.stackexchange.com/2.2/similar')
+            url = url.update_query(title=query)
+            response = await self._get(url)
         return response['items'][:limit]
 
 
@@ -66,18 +79,24 @@ async def on_message(**payload):
     if text and QUESTION_PATTERN.match(text):
         # split text with QUESTION_PATTERN
         title_and_body = QUESTION_PATTERN.split(text)[-1] + '\n'
-        chunks = [part for part in title_and_body.split('\n') if part]
-        if len(chunks) == 0:
+        parts = [part.strip() for part in title_and_body.split('\n')]
+        parts = [part for part in parts if part]
+        if len(parts) == 0:
             pass
-        elif len(chunks) == 1:
-            await reply(client=web_client, channel_id=channel_id, thread_ts=thread_ts, title=chunks[0], body=chunks[0])
         else:
-            await reply(client=web_client, channel_id=channel_id, thread_ts=thread_ts, title=chunks[0], body=chunks[1])
+            if len(parts) == 1:
+                title = parts[0]
+                body = parts[0]
+            else:
+                title = parts[0]
+                body = '\n'.join(parts[1:])
+            await reply(client=web_client, channel_id=channel_id, thread_ts=thread_ts, title=title, body=body)
 
 
 async def reply(client, channel_id: str, thread_ts: str, title: str, body: str = None):
     # search existing question or answer items by body
     results = await dispatcher.search(query=title)
+
     # post slack message to search results
     if results:
         text = f'Results for *_"{title}"_*:\n' + \
@@ -101,7 +120,9 @@ async def reply(client, channel_id: str, thread_ts: str, title: str, body: str =
                             "type": "plain_text",
                             "text": "Search on Stackoverflow"
                         },
-                        "url": str(URL(f"{STACKOVERFLOW_TEAM_URL}/search").update_query(q=title, mixed=0))
+                        "url": str(URL(f"{STACKOVERFLOW_TEAM_URL}/search").update_query(
+                            q=title, mixed=0
+                        ))
                     },
                     {
                         "type": "button",
@@ -109,7 +130,9 @@ async def reply(client, channel_id: str, thread_ts: str, title: str, body: str =
                             "type": "plain_text",
                             "text": "Ask on Stackoverflow"
                         },
-                        "url": str(URL(f"{STACKOVERFLOW_TEAM_URL}/questions/ask").update_query(title=title, r='Slack'))
+                        "url": str(URL(f"{STACKOVERFLOW_TEAM_URL}/questions/ask").update_query(
+                            title=title, body=body, r='Slack'
+                        ))
                     }
                 ]
             }
